@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-slate-50 text-slate-800 antialiased; font-feature-settings: 'tnum' 1, 'cv11' 1; }
+  h1, h2, h3 { @apply text-slate-900; }
+  :focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-1; }
+  input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; }
+}
+
+@layer components {
+  .input {
+    @apply block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400
+      focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500;
+  }
+  .input-error { @apply border-rose-400 focus:border-rose-500 focus:ring-rose-500/30; }
+  .th { @apply whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500; }
+  .td { @apply px-3 py-2.5 text-sm text-slate-700; }
+  .num { @apply text-right tabular-nums; }
+  .table-wrap { @apply overflow-x-auto; }
+  .table { @apply min-w-full divide-y divide-slate-200; }
+  .table tbody tr { @apply border-b border-slate-100 last:border-0; }
+  .row-click { @apply cursor-pointer hover:bg-slate-50; }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-area { box-shadow: none !important; border: 0 !important; }
+  main { padding: 0 !important; }
+  .table-wrap { overflow: visible !important; }
+  @page { margin: 12mm; }
+}
