@@ -197,7 +197,8 @@ creation and validation (zero, negative, huge amounts, invalid dates), cash bala
 reversals, duplicate-request protection, concurrent postings, expense approval, invoice totals, partial
 payments, over-payment, duplicate payments, refunds, pending/failed online payments, webhook signature
 verification and idempotency, P&L (accrual and cash), date-range filtering, report totals reconciling with the
-ledger, CSV/Excel/PDF exports, empty reports, company validation, and the audit log.
+ledger, CSV/Excel/PDF exports, empty reports, company validation, the audit log, file uploads (type
+sniffing, size limit, access control), bank statement import and reconciliation, and user invitation.
 
 ## 9. Production build
 

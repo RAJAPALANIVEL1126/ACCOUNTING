@@ -17,8 +17,9 @@ function useAccountSync(method: string, accountId: string, setAccount: (id: stri
   const options = accountsFor(accounts.data, method);
   useEffect(() => {
     if (accounts.data && !options.some((a) => a.id === accountId)) setAccount(options.length === 1 ? options[0].id : '');
+    // accountId is a dependency so the single matching account is re-selected after the form is reset on open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [method, accounts.data]);
+  }, [method, accounts.data, accountId]);
   return options;
 }
 
