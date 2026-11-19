@@ -76,7 +76,7 @@ function IncomeExpenseForm({ kind, onClose, defaultAccountId }: { kind: 'INCOME'
   const pick = (chosen: File | undefined) => {
     setFileError('');
     if (!chosen) return;
-    if (chosen.size > 5 * 1024 * 1024) return setFileError('The file is larger than 5 MB.');
+    if (chosen.size > 4 * 1024 * 1024) return setFileError('The file is larger than 4 MB.');
     if (!['image/png', 'image/jpeg', 'image/webp', 'application/pdf'].includes(chosen.type)) return setFileError('Only PNG, JPEG, WebP or PDF files are allowed.');
     setFile(chosen);
   };
@@ -157,7 +157,7 @@ function IncomeExpenseForm({ kind, onClose, defaultAccountId }: { kind: 'INCOME'
               <button type="button" onClick={() => setFile(null)} className="rounded p-1 text-slate-400 hover:text-slate-600" aria-label="Remove attachment"><X className="h-4 w-4" /></button>
             </div>
           ) : <Button variant="secondary" size="sm" icon={<Paperclip className="h-3.5 w-3.5" />} onClick={() => fileRef.current?.click()}>Attach receipt or invoice</Button>}
-          {fileError ? <p className="mt-1 text-xs font-medium text-rose-600" role="alert">{fileError}</p> : !file && <p className="mt-1 text-xs text-slate-500">PNG, JPEG, WebP or PDF, up to 5 MB.</p>}
+          {fileError ? <p className="mt-1 text-xs font-medium text-rose-600" role="alert">{fileError}</p> : !file && <p className="mt-1 text-xs text-slate-500">PNG, JPEG, WebP or PDF, up to 4 MB.</p>}
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between rounded-md bg-slate-50 px-3.5 py-2.5 text-sm">

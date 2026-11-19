@@ -108,7 +108,7 @@ npm --prefix client install
    | `COOKIE_SECURE` | `true` behind HTTPS (forced on in production) |
    | `TRUST_PROXY` | Number of reverse proxies in front of the API |
    | `SMTP_*` | Outgoing e-mail for verification, invitations and password resets |
-   | `UPLOAD_DIR`, `MAX_UPLOAD_MB` | Where logos/receipts are stored, and the size cap |
+   | `MAX_UPLOAD_MB` | Upload size cap (default 4). Files are stored in the database; `UPLOAD_DIR` is only read for files saved by older versions |
    | `RAZORPAY_*` | Optional payment gateway (leave empty for recording mode) |
    | `SERVE_CLIENT` | `true` to serve the built web client from the API process |
 
@@ -213,7 +213,7 @@ Outputs: `server/dist/` (run with `node dist/index.js`) and `client/dist/` (stat
 1. PostgreSQL: a managed instance or your own server, reachable only from the API host, TLS enabled, with a
    dedicated least-privilege role that owns only this database.
 2. Environment on the API host: `NODE_ENV=production`, `DATABASE_URL`, `APP_URL=https://your-domain`,
-   `TRUST_PROXY=1` (behind one reverse proxy), `SMTP_*`, `UPLOAD_DIR` on a persistent volume. The server
+   `TRUST_PROXY=1` (behind one reverse proxy) and `SMTP_*`. The server
    refuses to start in production without a database URL and an `https://` `APP_URL`.
 3. `npm ci` in `server/`, then `npm run build`, then `npm run migrate:deploy` (run on every release).
 4. Create the first administrator once: `npm run setup:admin:prod`.
@@ -240,38 +240,41 @@ Outputs: `server/dist/` (run with `node dist/index.js`) and `client/dist/` (stat
 7. Run exactly one schema migration at a time; the API itself is stateless and can run as several instances
    (sessions, idempotency keys and counters live in PostgreSQL). Uploaded files then need shared storage.
 
-**Deploying on Render (one Web Service + Render PostgreSQL)**
+**Deploying on Vercel (recommended host for this repository)**
 
-The root `package.json` does the whole job, so Render's defaults work:
+The repository is ready for Vercel as a single project: `vercel.json` builds the web client as static files and
+runs the API as one serverless function (`api/index.ts`), on the same domain, so sign-in cookies just work.
 
-| Setting | Value |
-|---|---|
-| Root directory | *(empty — the repository root)* |
-| Build command | `npm run build` (or Render's default `yarn; yarn build`) — installs the server and client dependencies, then builds both |
-| Start command | `npm start` (or `yarn start`) — applies pending database migrations, then starts the API |
-| Health check path | `/api/health` |
+1. **Database.** In the Vercel project open **Storage → Create Database → Neon (Postgres)** and connect it to
+   the project. This adds `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED` (direct). The app automatically
+   uses the direct connection; with another provider just set `DATABASE_URL`.
+2. **Import the repository** (Add New → Project). Keep **Root Directory** `./` and choose **Application Preset:
+   Other**. Do *not* use "Services" or import `client`/`server` separately — `vercel.json` already sets the
+   install command, build command and output directory.
+3. **Environment variables** (Settings → Environment Variables, Production):
 
-Environment variables (Web Service → Environment). The server refuses to start in production without the first three:
+   | Variable | Value |
+   |---|---|
+   | `NODE_ENV` | `production` |
+   | `APP_URL` | your production URL, e.g. `https://accounting-xxxx.vercel.app` (must be `https://`) |
+   | `TRUST_PROXY` | `1` |
+   | `CRON_SECRET` | a long random string; protects the daily cleanup job |
+   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | your e-mail provider; without them sign-up verification and password links cannot be delivered |
 
-| Variable | Value |
-|---|---|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | the PostgreSQL **Internal Database URL** from your Render database |
-| `APP_URL` | your service's public URL, e.g. `https://accounting-xxxx.onrender.com` (must be `https://`) |
-| `SERVE_CLIENT` | `true` — the API serves the web app, so everything is on one origin |
-| `TRUST_PROXY` | `1` — Render sits in front of the app as one proxy |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | your e-mail provider; without them sign-up verification and password links cannot be delivered |
+4. **Deploy.** Every deploy's build applies pending database migrations and creates the roles
+   (`npm run vercel-build`), then builds the client. No users, companies or records are created.
+5. **Create the first administrator** from your own computer, pointed at the production database (use the
+   *unpooled* connection string from the Neon integration), in PowerShell:
 
-Create the first administrator once the first deploy is live. Render's shell (paid plans) can run
-`npm --prefix server run setup:admin:prod`. On any plan you can run the normal setup from your own computer
-against the Render database, using its **External Database URL** (PowerShell):
+   ```powershell
+   $env:DATABASE_URL = 'postgresql://…unpooled URL…'; npm run setup:admin
+   ```
 
-```powershell
-$env:DATABASE_URL = 'postgresql://…external URL from Render…'; npm run setup:admin
-```
+   Then open the site, sign in, and create your company.
 
-Render's free instances have an ephemeral disk: uploaded logos and receipts are lost on every deploy or restart.
-Attach a persistent disk and point `UPLOAD_DIR` at it if you need to keep them.
+What differs from a classic server: uploaded logos and receipts are stored in the database (Vercel has no
+persistent disk), uploads are limited to 4 MB (Vercel's request limit is 4.5 MB), expired sessions are cleaned
+by a daily Vercel Cron job (`/api/cron/housekeeping`), and request rate limits are counted per function instance.
 
 **External services that still need your configuration**
 
@@ -319,17 +322,13 @@ Attach a persistent disk and point `UPLOAD_DIR` at it if you need to keep them.
 
 ## 13. Backup and recovery
 
-**What to back up:** (1) the PostgreSQL database — all accounting data; (2) the upload directory
-(`UPLOAD_DIR`) — logos and receipts; (3) your environment/secrets, stored separately in a secret manager.
+**What to back up:** (1) the PostgreSQL database — all accounting data, including uploaded logos and receipts;
+(2) your environment/secrets, stored separately in a secret manager.
 
 **Nightly logical backup**
 
 ```bash
 pg_dump --format=custom --no-owner --file="cas-$(date +%F).dump" "$DATABASE_URL"
-```
-
-```bash
-tar -czf "cas-uploads-$(date +%F).tar.gz" -C /path/to uploads
 ```
 
 Encrypt the files, copy them off-site, keep at least 30 daily and 12 monthly copies. For a recovery point of
@@ -345,7 +344,7 @@ createdb cas_restored
 pg_restore --no-owner --dbname="postgresql://USER:PASSWORD@HOST:5432/cas_restored" cas-YYYY-MM-DD.dump
 ```
 
-Then restore the uploads archive into `UPLOAD_DIR`, point `DATABASE_URL` at the restored database, run
+Then point `DATABASE_URL` at the restored database, run
 `npm run migrate:deploy`, start the API and verify: sign in, compare the dashboard cash/bank balances and the
 latest transaction number with what you expect, and open one attachment.
 

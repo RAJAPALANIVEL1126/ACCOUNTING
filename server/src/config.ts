@@ -19,7 +19,8 @@ export const config = {
   cookieSecure: isProd ? true : bool(env.COOKIE_SECURE, false),
   trustProxy: int(env.TRUST_PROXY, 0),
   uploadDir: path.resolve(env.UPLOAD_DIR || './uploads'),
-  maxUploadBytes: int(env.MAX_UPLOAD_MB, 5) * 1024 * 1024,
+  // 4 MB keeps uploads under the 4.5 MB request limit of serverless hosts such as Vercel.
+  maxUploadBytes: int(env.MAX_UPLOAD_MB, 4) * 1024 * 1024,
   serveClient: bool(env.SERVE_CLIENT, false),
   smtp: {
     host: env.SMTP_HOST || '',

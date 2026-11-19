@@ -12,7 +12,7 @@ import { idempotent } from '../middleware/idempotency';
 import { cancelInvoice, createInvoice, displayStatus, issueInvoice, updateDraftInvoice } from '../services/invoices';
 import { recordPayment } from '../services/payments';
 import { createOrder, gatewayConfigured, gatewayStatus } from '../services/gateway';
-import { attachmentPath } from './attachments';
+import { attachmentContent } from './attachments';
 import { actorOf, inTx, userNames } from './helpers';
 
 export const invoicesRouter = Router();
@@ -175,8 +175,8 @@ invoicesRouter.get('/:id/pdf', requirePerm('invoices.view'), h(async (req, res) 
   let top = 40;
   if (company.logoAttachmentId) {
     try {
-      const { att, file } = await attachmentPath(companyId, company.logoAttachmentId);
-      if (['image/png', 'image/jpeg'].includes(att.mimeType)) { doc.image(file, 40, 40, { fit: [90, 60] }); top = 108; }
+      const { att, buffer } = await attachmentContent(companyId, company.logoAttachmentId);
+      if (['image/png', 'image/jpeg'].includes(att.mimeType)) { doc.image(buffer, 40, 40, { fit: [90, 60] }); top = 108; }
     } catch { /* logo is optional */ }
   }
   doc.font('Helvetica-Bold').fontSize(16).fillColor('#0F1E3D').text(company.name, 40, top, { width: W / 2 });

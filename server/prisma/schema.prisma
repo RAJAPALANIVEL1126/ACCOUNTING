@@ -681,6 +681,7 @@ model Attachment {
   storedName   String
   mimeType     String
   size         Int
+  data         Bytes?
   uploadedById String
   createdAt    DateTime @default(now())
 

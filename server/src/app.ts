@@ -21,6 +21,8 @@ import { dashboardRouter } from './routes/dashboard';
 import { auditRouter, reportsRouter } from './routes/reports';
 import { attachmentsRouter } from './routes/attachments';
 import { prisma } from './db';
+import { safeEqual } from './lib/tokens';
+import { runHousekeeping } from './services/housekeeping';
 
 export function createApp() {
   const app = express();
@@ -82,6 +84,16 @@ export function createApp() {
     next();
   });
   app.use('/api', loadSession);
+
+  // Scheduled cleanup for serverless hosts. Vercel Cron sends "Authorization: Bearer <CRON_SECRET>".
+  app.get('/api/cron/housekeeping', h(async (req, res) => {
+    const secret = process.env.CRON_SECRET;
+    const sent = req.headers.authorization ?? '';
+    if (!secret || !safeEqual(sent, `Bearer ${secret}`)) {
+      return res.status(401).json({ error: { code: 'UNAUTHENTICATED', message: 'Invalid cron secret' } });
+    }
+    res.json({ data: { removed: await runHousekeeping() } });
+  }));
 
   app.get('/api/health', h(async (_req, res) => {
     await prisma.$queryRaw`SELECT 1`;

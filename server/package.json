@@ -13,6 +13,7 @@
     "prisma:generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
+    "prepare:deploy": "tsx src/scripts/prepare-deploy.ts",
     "setup:admin": "tsx src/scripts/setup-admin.ts",
     "setup:admin:prod": "node dist/scripts/setup-admin.js"
   },

@@ -44,7 +44,7 @@ export default function Company() {
         </Card>
         <div className="space-y-5">
           <Card>
-            <CardHeader title="Company logo" description="PNG, JPEG or WebP, up to 5 MB. Shown on invoices." />
+            <CardHeader title="Company logo" description="PNG, JPEG or WebP, up to 4 MB. Shown on invoices." />
             <div className="p-5">
               <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50">
                 {hasLogo ? <img src={`/api/company/logo?v=${String(c.logoAttachmentId)}-${logoVersion}`} alt="Company logo" className="max-h-28 max-w-full object-contain" /> : <span className="text-sm text-slate-400">No logo uploaded</span>}

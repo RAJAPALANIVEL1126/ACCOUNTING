@@ -1,0 +1,18 @@
+{
+  "//": "Used by Vercel to compile api/index.ts and the server code it imports. Mirrors server/tsconfig.json.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "typeRoots": ["./server/node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["api"]
+}

@@ -32,35 +32,35 @@ export async function saveUpload(req: Request, purpose: string, allowed: string[
     throw new AppError(400, 'UPLOAD_ERROR', `Unsupported file type. Allowed: ${allowed.map((m) => m.split('/')[1].toUpperCase()).join(', ')}`);
   }
   const companyId = companyOf(req);
+  // Stored in the database, not on disk: serverless hosts (e.g. Vercel) have no persistent file system.
   const storedName = randomToken(18) + kind.ext;
-  const dir = path.join(config.uploadDir, companyId);
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, storedName), file.buffer, { flag: 'wx' });
   const fileName = path.basename(file.originalname).replace(/[^\w.\- ]+/g, '_').slice(0, 120) || 'file' + kind.ext;
   return prisma.attachment.create({
-    data: { companyId, purpose, fileName, storedName, mimeType: kind.mime, size: file.size, uploadedById: req.auth!.userId },
+    data: { companyId, purpose, fileName, storedName, mimeType: kind.mime, size: file.size, data: new Uint8Array(file.buffer), uploadedById: req.auth!.userId },
+    select: { id: true, fileName: true, mimeType: true, size: true },
   });
 }
 
-export async function attachmentPath(companyId: string, id: string) {
+/** File contents, read from the database (or, for files saved before that change, from UPLOAD_DIR). */
+export async function attachmentContent(companyId: string, id: string) {
   const att = await prisma.attachment.findFirst({ where: { id, companyId } });
   if (!att) throw notFound('Attachment');
-  return { att, file: path.join(config.uploadDir, companyId, path.basename(att.storedName)) };
-}
-
-export async function sendAttachment(res: Response, companyId: string, id: string, inline = false) {
-  const { att, file } = await attachmentPath(companyId, id);
+  if (att.data) return { att, buffer: Buffer.from(att.data) };
   try {
-    await fs.access(file);
+    return { att, buffer: await fs.readFile(path.join(config.uploadDir, companyId, path.basename(att.storedName))) };
   } catch {
     throw notFound('Attachment file');
   }
+}
+
+export async function sendAttachment(res: Response, companyId: string, id: string, inline = false) {
+  const { att, buffer } = await attachmentContent(companyId, id);
   res.setHeader('Content-Type', att.mimeType);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
   res.setHeader('Cache-Control', 'private, max-age=300');
   res.setHeader('Content-Disposition', `${inline && att.mimeType.startsWith('image/') ? 'inline' : 'attachment'}; filename="${att.fileName.replace(/"/g, '')}"`);
-  res.sendFile(file);
+  res.send(buffer);
 }
 
 export const attachmentsRouter = Router();

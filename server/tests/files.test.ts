@@ -30,6 +30,10 @@ describe('file uploads', () => {
     expect(got.headers['x-content-type-options']).toBe('nosniff');
     expect((await admin.get('/api/company')).body.data.logoAttachmentId).toBe(res.body.data.logoAttachmentId);
     expect(await prisma.auditLog.count({ where: { companyId: a.companyId, action: 'company.logo' } })).toBe(1);
+    // Stored in the database (no disk needed), byte for byte.
+    const row = await prisma.attachment.findUniqueOrThrow({ where: { id: res.body.data.logoAttachmentId } });
+    expect(Buffer.from(row.data!).equals(PNG)).toBe(true);
+    expect(Buffer.from(got.body).equals(PNG)).toBe(true);
   });
 
   it('decides the type from file content, not the file name', async () => {
@@ -77,6 +81,25 @@ describe('file uploads', () => {
     expect((await upload(viewer, '/api/attachments', PDF, 'r.pdf')).status).toBe(403);
     expect((await upload(accountant, '/api/company/logo', PNG, 'logo.png')).status).toBe(403);
     expect((await request(app).post('/api/attachments').set('Cookie', admin.cookie).attach('file', PDF, 'r.pdf')).status).toBe(403); // no CSRF token
+  });
+});
+
+describe('scheduled housekeeping (Vercel cron)', () => {
+  it('requires the cron secret and removes expired sessions', async () => {
+    expect((await request(app).get('/api/cron/housekeeping')).status).toBe(401); // CRON_SECRET not set → always refused
+    process.env.CRON_SECRET = 'test-cron-secret';
+    try {
+      expect((await request(app).get('/api/cron/housekeeping')).status).toBe(401);
+      expect((await request(app).get('/api/cron/housekeeping').set('Authorization', 'Bearer wrong')).status).toBe(401);
+      const user = await prisma.user.findFirstOrThrow({ where: { companyId: a.companyId } });
+      await prisma.userSession.create({ data: { userId: user.id, tokenHash: 'expired-' + Date.now(), csrfToken: 'x', expiresAt: new Date(Date.now() - 1000) } });
+      const ok = await request(app).get('/api/cron/housekeeping').set('Authorization', 'Bearer test-cron-secret');
+      expect(ok.status).toBe(200);
+      expect(ok.body.data.removed.sessions).toBeGreaterThanOrEqual(1);
+      expect((await admin.get('/api/auth/me')).status).toBe(200); // live sessions are untouched
+    } finally {
+      delete process.env.CRON_SECRET;
+    }
   });
 });
 
