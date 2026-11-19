@@ -90,8 +90,8 @@ npm --prefix client install
    CREATE DATABASE cas_test;
    ```
 
-   *Windows shortcut:* `npm run db:start` creates and starts a private development cluster on port 5434
-   (local connections only) with both databases; `npm run db:stop` stops it. It must be started again after
+   *Windows shortcut:* `npm run db:start` creates and starts a private development cluster on port 5434, with
+   its data in `%USERPROFILE%\cas-dev-pg` (local connections only) and both databases; `npm run db:stop` stops it. It must be started again after
    a reboot.
 
 2. Copy the environment template and fill it in:
