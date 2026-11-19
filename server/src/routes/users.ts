@@ -15,7 +15,7 @@ import { issuePasswordLink } from './auth';
 
 export const usersRouter = Router();
 
-const zRole = z.enum(['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT', 'VIEWER']);
+const zRole = z.enum(['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT', 'VIEWER'], { errorMap: () => ({ message: 'Select a role' }) });
 const zPhone = z.preprocess((v) => (v === '' || v === null ? undefined : v), z.string().trim().refine(isValidPhone, 'Enter a valid phone number').optional());
 
 const view = (u: User & { role: Role }) => ({

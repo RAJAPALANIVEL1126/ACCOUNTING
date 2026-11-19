@@ -51,7 +51,6 @@ server/
                                  finance (aggregations), reports, exporter (CSV/XLSX/PDF)
   src/routes/                    REST endpoints
   src/scripts/setup-admin.ts     secure first-administrator setup
-  src/scripts/seed-dev.ts        OPTIONAL development-only sample data
   tests/                         API integration + calculation tests
 client/
   src/pages/                     Dashboard, Company, Transactions/Income/Expenses, Cash/Bank, Account book +
@@ -170,15 +169,10 @@ npm --prefix client run dev
 
 Without SMTP in development, e-mails (verification, invitation, reset links) are printed to the API console.
 
-**Optional sample data (development only).** Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in `server/.env`,
-then:
-
-```bash
-npm --prefix server run seed:dev
-```
-
-This creates a clearly-labelled demo company with a few weeks of entries. It refuses to run with
-`NODE_ENV=production`, is never run automatically, and the application itself never inserts sample data.
+**No sample data.** The application never inserts sample or demo records, and there is no seed script. Every
+income, expense, invoice and payment is entered by a user, and entry forms start empty: no date, amount, payment
+method, account or category is chosen for you. A new company starts with only an empty "Cash in Hand" account
+(balance 0) and a standard list of income and expense categories that you can rename, deactivate or extend.
 
 ## 8. Tests
 

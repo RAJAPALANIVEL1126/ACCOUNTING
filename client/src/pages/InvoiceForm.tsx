@@ -6,7 +6,6 @@ import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useCategories, useParties, useSettings, useSubmit, useTaxRates } from '../lib/hooks';
-import { addDays, todayIso } from '../lib/dates';
 import { formatMoney, fromPaise, toPaise } from '../lib/format';
 import { Button, Card, ErrorState, Field, Input, Loading, Notice, PageHeader, Select, Textarea } from '../components/ui';
 
@@ -14,7 +13,7 @@ interface Item { key: number; description: string; quantity: string; unitPrice: 
 interface Existing { id: string; number: string; storedStatus: string; customerId: string; issueDate: string; dueDate: string; notes: string | null; terms: string | null; items: Array<Omit<Item, 'key'>> }
 
 let nextKey = 1;
-const blankItem = (categoryId = ''): Item => ({ key: nextKey++, description: '', quantity: '1', unitPrice: '', discount: '', taxRate: '0', categoryId });
+const blankItem = (): Item => ({ key: nextKey++, description: '', quantity: '', unitPrice: '', discount: '', taxRate: '0', categoryId: '' });
 
 /** Preview only, in integer paise. The server recalculates every figure when the invoice is saved. */
 function preview(it: Item) {
@@ -39,7 +38,7 @@ export default function InvoiceForm() {
   const existing = useQuery({ queryKey: ['invoice', id], queryFn: async () => (await api.get<Existing>(`/invoices/${id}`)).data, enabled: editing });
   const { busy, run } = useSubmit();
 
-  const [head, setHead] = useState({ customerId: params.get('customerId') ?? '', issueDate: todayIso(), dueDate: '', notes: '', terms: '' });
+  const [head, setHead] = useState({ customerId: params.get('customerId') ?? '', issueDate: '', dueDate: '', notes: '', terms: '' });
   const [items, setItems] = useState<Item[]>([blankItem()]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(!editing);
@@ -47,8 +46,9 @@ export default function InvoiceForm() {
   const s = settings.data?.settings;
   const taxLabel = s?.taxLabel ?? 'Tax';
 
+  // Only the notes and terms the company saved itself under Settings → Invoices are carried over (empty unless set).
   useEffect(() => {
-    if (!editing && s && !head.dueDate) setHead((h) => ({ ...h, dueDate: addDays(h.issueDate, s.invoiceDueDays), notes: h.notes || s.invoiceNotes || '', terms: h.terms || s.invoiceTerms || '' }));
+    if (!editing && s) setHead((h) => ({ ...h, notes: h.notes || s.invoiceNotes || '', terms: h.terms || s.invoiceTerms || '' }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s, editing]);
   useEffect(() => {
@@ -58,10 +58,6 @@ export default function InvoiceForm() {
     setItems(e.items.map((it) => ({ ...it, key: nextKey++, discount: Number(it.discount) ? it.discount : '', taxRate: String(Number(it.taxRate)) })));
     setLoaded(true);
   }, [existing.data, loaded]);
-  useEffect(() => {
-    if (incomeCats.length && items.some((it) => !it.categoryId)) setItems((list) => list.map((it) => (it.categoryId ? it : { ...it, categoryId: incomeCats[0].id })));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomeCats.length]);
 
   const setItem = (key: number, patch: Partial<Item>) => { setItems((list) => list.map((it) => (it.key === key ? { ...it, ...patch } : it))); setErrors({}); };
   const totals = items.map(preview).reduce((a, p) => ({ gross: a.gross + p.gross, discount: a.discount + p.discount, tax: a.tax + p.tax, total: a.total + p.total }), { gross: 0, discount: 0, tax: 0, total: 0 });
@@ -96,7 +92,7 @@ export default function InvoiceForm() {
               <option value="">Select a customer</option>{(customers.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}{c.businessName ? ` — ${c.businessName}` : ''}</option>)}
             </Select>
           </Field>
-          <Field label="Invoice date" required error={errors.issueDate}><Input type="date" value={head.issueDate} invalid={Boolean(errors.issueDate)} onChange={(e) => setHead({ ...head, issueDate: e.target.value, dueDate: head.dueDate < e.target.value ? e.target.value : head.dueDate })} /></Field>
+          <Field label="Invoice date" required error={errors.issueDate}><Input type="date" value={head.issueDate} invalid={Boolean(errors.issueDate)} onChange={(e) => setHead({ ...head, issueDate: e.target.value })} /></Field>
           <Field label="Due date" required error={errors.dueDate}><Input type="date" min={head.issueDate} value={head.dueDate} invalid={Boolean(errors.dueDate)} onChange={(e) => setHead({ ...head, dueDate: e.target.value })} /></Field>
         </div>
       </Card>
@@ -131,7 +127,7 @@ export default function InvoiceForm() {
         </div>
         <div className="flex flex-wrap items-start justify-between gap-6 border-t border-slate-100 p-5">
           <div>
-            <Button variant="secondary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setItems((list) => [...list, blankItem(incomeCats[0]?.id ?? '')])} disabled={items.length >= 100}>Add line</Button>
+            <Button variant="secondary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setItems((list) => [...list, blankItem()])} disabled={items.length >= 100}>Add line</Button>
             {itemError && <p className="mt-2 text-xs font-medium text-rose-600" role="alert">{itemError}</p>}
             {!showTax && <p className="mt-2 max-w-sm text-xs text-slate-500">Tax is not enabled for this company. An administrator can enable it and add tax rates under Settings.</p>}
           </div>

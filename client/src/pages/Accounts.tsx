@@ -20,12 +20,12 @@ const COPY = {
 function AccountFormModal({ kind, open, onClose }: { kind: 'CASH' | 'BANK'; open: boolean; onClose: () => void }) {
   const { currency } = useAuth();
   const { busy, run } = useSubmit();
-  const f = useForm({ name: '', bankName: '', bankAccountType: 'CURRENT', accountNumber: '', openingBalance: '', openingDate: todayIso() });
+  const f = useForm({ name: '', bankName: '', bankAccountType: '', accountNumber: '', openingBalance: '', openingDate: '' });
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void run((key) => api.post('/accounts', { kind, ...f.values }, key), {
       success: `${titleCase(kind)} account created`, setErrors: f.setErrors,
-      onDone: () => { f.reset({ name: '', bankName: '', bankAccountType: 'CURRENT', accountNumber: '', openingBalance: '', openingDate: todayIso() }); onClose(); },
+      onDone: () => { f.reset({ name: '', bankName: '', bankAccountType: '', accountNumber: '', openingBalance: '', openingDate: '' }); onClose(); },
     });
   };
   return (
@@ -36,14 +36,14 @@ function AccountFormModal({ kind, open, onClose }: { kind: 'CASH' | 'BANK'; open
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Bank name" required error={f.errors.bankName}><Input {...f.bind('bankName')} /></Field>
             <Field label="Account type" error={f.errors.bankAccountType}>
-              <Select {...f.bind('bankAccountType')}>{['CURRENT', 'SAVINGS', 'OVERDRAFT', 'CASH_CREDIT', 'OTHER'].map((t) => <option key={t} value={t}>{titleCase(t)}</option>)}</Select>
+              <Select {...f.bind('bankAccountType')}><option value="">Select an account type</option>{['CURRENT', 'SAVINGS', 'OVERDRAFT', 'CASH_CREDIT', 'OTHER'].map((t) => <option key={t} value={t}>{titleCase(t)}</option>)}</Select>
             </Field>
             <Field label="Account number" error={f.errors.accountNumber} hint="Only the last 4 digits are stored" className="sm:col-span-2"><Input inputMode="numeric" autoComplete="off" {...f.bind('accountNumber')} /></Field>
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={`Opening balance (${currency})`} error={f.errors.openingBalance} hint="Posted as an opening entry"><Input inputMode="decimal" placeholder="0.00" {...f.bind('openingBalance')} /></Field>
-          <Field label="Opening balance date" error={f.errors.openingDate}><Input type="date" max={todayIso()} {...f.bind('openingDate')} /></Field>
+          <Field label={`Opening balance (${currency})`} error={f.errors.openingBalance} hint="Leave blank if the account starts at zero"><Input inputMode="decimal" placeholder="0.00" {...f.bind('openingBalance')} /></Field>
+          <Field label="Opening balance date" error={f.errors.openingDate} hint="Today is used if left blank"><Input type="date" max={todayIso()} {...f.bind('openingDate')} /></Field>
         </div>
         {kind === 'BANK' && <Notice>Never enter internet-banking passwords, PINs or card details here. This application does not need or store them.</Notice>}
         <div className="flex justify-end gap-2 pt-1"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={busy}>Create account</Button></div>

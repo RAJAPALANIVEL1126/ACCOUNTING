@@ -91,7 +91,7 @@ export default function InvoiceDetail() {
             {inv.storedStatus === 'DRAFT' && manage && <Link to={`/invoices/${id}/edit`}><Button variant="secondary" icon={<Pencil className="h-4 w-4" />}>Edit</Button></Link>}
             {inv.storedStatus !== 'CANCELLED' && inv.storedStatus !== 'PAID' && manage && <Button variant="secondary" icon={<Ban className="h-4 w-4" />} onClick={() => setConfirm('cancel')}>Cancel invoice</Button>}
             {inv.storedStatus === 'DRAFT' && manage && <Button icon={<Send className="h-4 w-4" />} onClick={() => setConfirm('issue')}>Issue invoice</Button>}
-            {open && can('payments.manage') && inv.gateway.configured && <Button variant="secondary" icon={<CreditCard className="h-4 w-4" />} onClick={() => { setCollectAccount(bankAccounts[0]?.id ?? ''); setCollect(true); }}>Collect online</Button>}
+            {open && can('payments.manage') && inv.gateway.configured && <Button variant="secondary" icon={<CreditCard className="h-4 w-4" />} onClick={() => { setCollectAccount(''); setCollect(true); }}>Collect online</Button>}
             {open && can('payments.manage') && <Button icon={<HandCoins className="h-4 w-4" />} onClick={() => setPaying(true)}>Record payment</Button>}
           </>
         }

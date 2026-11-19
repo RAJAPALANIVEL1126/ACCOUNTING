@@ -69,7 +69,7 @@ paymentsRouter.get('/', requirePerm('payments.view'), h(async (req, res) => {
 paymentsRouter.post('/', requirePerm('payments.manage'), idempotent, h(async (req, res) => {
   const d = parse(z.object({
     direction: z.enum(['INBOUND', 'OUTBOUND']).default('INBOUND'),
-    status: z.enum(['SUCCESS', 'PENDING']).default('SUCCESS'),
+    status: z.enum(['SUCCESS', 'PENDING'], { errorMap: () => ({ message: 'Select a payment status' }) }).default('SUCCESS'),
     method: z.enum(METHODS, { errorMap: () => ({ message: 'Select a payment method' }) }),
     gateway: zText(40), gatewayPaymentId: zText(100),
     customerId: zIdOptional, supplierId: zIdOptional, invoiceId: zIdOptional, billTransactionId: zIdOptional, categoryId: zIdOptional,

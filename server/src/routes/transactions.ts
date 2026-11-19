@@ -61,7 +61,7 @@ const transferSchema = z.object({ date: zDate, fromAccountId: zId, toAccountId: 
 const adjustmentSchema = z.object({
   date: zDate,
   accountId: zId,
-  direction: z.enum(['INCREASE', 'DECREASE']),
+  direction: z.enum(['INCREASE', 'DECREASE'], { errorMap: () => ({ message: 'Choose increase or decrease' }) }),
   amount: zMoneyPositive,
   reason: z.string({ required_error: 'A reason is required' }).trim().min(5, 'Explain the reason for this adjustment (at least 5 characters)').max(500),
   reference: zText(100),
@@ -203,7 +203,7 @@ expensesRouter.post('/', requirePerm('transactions.create'), idempotent, h((req,
 
 // Pay a supplier bill (an expense recorded on credit).
 expensesRouter.post('/:id/payments', requirePerm('payments.manage'), idempotent, h(async (req, res) => {
-  const d = parse(z.object({ date: zDate, amount: zMoneyPositive, paymentMethod: z.enum(SETTLEMENT_METHODS), accountId: zId, reference: zText(100) }), req.body);
+  const d = parse(z.object({ date: zDate, amount: zMoneyPositive, paymentMethod: z.enum(SETTLEMENT_METHODS, { errorMap: () => ({ message: 'Select a payment method' }) }), accountId: zId, reference: zText(100) }), req.body);
   assertNotFuture(d.date);
   const payment = await inTx((tx) => recordPayment(tx, actorOf(req), {
     direction: 'OUTBOUND', status: 'SUCCESS', method: d.paymentMethod as never, billTransactionId: req.params.id, accountId: d.accountId, date: d.date, amount: d.amount, fee: sum([]), reference: d.reference,

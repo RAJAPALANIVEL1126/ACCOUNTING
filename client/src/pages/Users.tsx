@@ -15,7 +15,7 @@ const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
 function UserFormModal({ open, onClose, user, roles }: { open: boolean; onClose: () => void; user: UserRow | null; roles: string[] }) {
   const { user: me } = useAuth();
   const { busy, run } = useSubmit();
-  const initial = () => ({ fullName: user?.fullName ?? '', email: user?.email ?? '', phone: user?.phone ?? '', role: user?.role ?? 'ACCOUNTANT' });
+  const initial = () => ({ fullName: user?.fullName ?? '', email: user?.email ?? '', phone: user?.phone ?? '', role: user?.role ?? '' });
   const f = useForm(initial());
   useEffect(() => { if (open) f.reset(initial()); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open, user?.id]);
   const self = user?.id === me?.id;
@@ -35,6 +35,7 @@ function UserFormModal({ open, onClose, user, roles }: { open: boolean; onClose:
         <Field label="Phone number" error={f.errors.phone}><Input type="tel" {...f.bind('phone')} /></Field>
         <Field label="Role" required error={f.errors.role} hint={self ? 'You cannot change your own role.' : user && user.role !== f.values.role ? 'Changing the role signs the user out everywhere.' : undefined}>
           <Select {...f.bind('role')} disabled={self}>
+            {!user && <option value="">Select a role</option>}
             {[...new Set([...(user ? [user.role] : []), ...roles])].map((r) => <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>)}
           </Select>
         </Field>

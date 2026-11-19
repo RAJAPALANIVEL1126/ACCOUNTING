@@ -15,9 +15,9 @@ const ONLINE_METHODS = ['UPI', 'CREDIT_CARD', 'DEBIT_CARD', 'NET_BANKING', 'PAYM
 function useAccountSync(method: string, accountId: string, setAccount: (id: string) => void) {
   const accounts = useAccounts();
   const options = accountsFor(accounts.data, method);
+  // Clear an account that no longer fits the payment method. Nothing is chosen automatically.
   useEffect(() => {
-    if (accounts.data && !options.some((a) => a.id === accountId)) setAccount(options.length === 1 ? options[0].id : '');
-    // accountId is a dependency so the single matching account is re-selected after the form is reset on open.
+    if (accounts.data && accountId && !options.some((a) => a.id === accountId)) setAccount('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [method, accounts.data, accountId]);
   return options;
@@ -27,8 +27,9 @@ function useAccountSync(method: string, accountId: string, setAccount: (id: stri
 export function SettleDialog({ open, onClose, target }: { open: boolean; onClose: () => void; target: { kind: 'invoice' | 'bill'; id: string; number: string; outstanding: string; party: string } | null }) {
   const { currency } = useAuth();
   const { busy, run } = useSubmit();
-  const f = useForm({ date: todayIso(), amount: '', paymentMethod: 'BANK_TRANSFER', accountId: '', reference: '', gatewayPaymentId: '', fee: '' });
-  useEffect(() => { if (open && target) f.reset({ date: todayIso(), amount: target.outstanding, paymentMethod: 'BANK_TRANSFER', accountId: '', reference: '', gatewayPaymentId: '', fee: '' }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open, target?.id]);
+  const blank = { date: '', amount: '', paymentMethod: '', accountId: '', reference: '', gatewayPaymentId: '', fee: '' };
+  const f = useForm(blank);
+  useEffect(() => { if (open && target) f.reset(blank); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open, target?.id]);
   const options = useAccountSync(f.values.paymentMethod, f.values.accountId, (id) => f.set('accountId', id));
   if (!target) return null;
   const invoice = target.kind === 'invoice';
@@ -45,8 +46,8 @@ export function SettleDialog({ open, onClose, target }: { open: boolean; onClose
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Payment date" required error={f.errors.date}><Input type="date" max={todayIso()} {...f.bind('date')} /></Field>
-          <Field label={`Amount (${currency})`} required error={f.errors.amount} hint="Partial payments are allowed"><Input inputMode="decimal" {...f.bind('amount')} /></Field>
-          <Field label="Payment method" required error={f.errors.paymentMethod}><Select {...f.bind('paymentMethod')}>{ALL_METHODS.map((m) => <option key={m} value={m}>{METHOD_LABELS[m]}</option>)}</Select></Field>
+          <Field label={`Amount (${currency})`} required error={f.errors.amount} hint={`Up to ${formatMoney(target.outstanding, currency)}; partial payments are allowed`}><Input inputMode="decimal" placeholder="0.00" {...f.bind('amount')} /></Field>
+          <Field label="Payment method" required error={f.errors.paymentMethod}><Select {...f.bind('paymentMethod')}><option value="">Select a payment method</option>{ALL_METHODS.map((m) => <option key={m} value={m}>{METHOD_LABELS[m]}</option>)}</Select></Field>
           <Field label={invoice ? 'Deposit to account' : 'Paid from account'} required error={f.errors.accountId}>
             <Select {...f.bind('accountId')}><option value="">Select an account</option>{options.map((a) => <option key={a.id} value={a.id}>{accountLabel(a, currency)}</option>)}</Select>
           </Field>
@@ -70,7 +71,7 @@ interface OpenInvoice { id: string; number: string; customer: string; outstandin
 export function RecordOnlinePaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { currency } = useAuth();
   const { busy, run } = useSubmit();
-  const blank = { linkTo: 'invoice', invoiceId: '', customerId: '', categoryId: '', status: 'SUCCESS', method: 'UPI', gateway: '', gatewayPaymentId: '', accountId: '', date: todayIso(), amount: '', fee: '', notes: '' };
+  const blank = { linkTo: 'invoice', invoiceId: '', customerId: '', categoryId: '', status: '', method: '', gateway: '', gatewayPaymentId: '', accountId: '', date: '', amount: '', fee: '', notes: '' };
   const f = useForm(blank);
   useEffect(() => { if (open) f.reset(blank); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open]);
   const v = f.values;
@@ -78,8 +79,6 @@ export function RecordOnlinePaymentDialog({ open, onClose }: { open: boolean; on
   const customers = useParties('customers', open);
   const categories = useCategories(open);
   const options = useAccountSync(v.method, v.accountId, (id) => f.set('accountId', id));
-  const chosen = invoices.data?.find((i) => i.id === v.invoiceId);
-  useEffect(() => { if (chosen && !v.amount) f.set('amount', chosen.outstanding); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [v.invoiceId]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -107,14 +106,14 @@ export function RecordOnlinePaymentDialog({ open, onClose }: { open: boolean; on
             <Field label="Income category" required error={f.errors.categoryId ?? f.errors.invoiceId}><Select {...f.bind('categoryId')}><option value="">Select a category</option>{(categories.data ?? []).filter((c) => c.type === 'INCOME' && c.isActive && !c.isSystem).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
           )}
           {v.linkTo === 'income' && <Field label="Customer" error={f.errors.customerId} hint="Optional"><Select {...f.bind('customerId')}><option value="">None</option>{(customers.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>}
-          <Field label="Payment method" required error={f.errors.method}><Select {...f.bind('method')}>{ONLINE_METHODS.map((m) => <option key={m} value={m}>{METHOD_LABELS[m]}</option>)}</Select></Field>
+          <Field label="Payment method" required error={f.errors.method}><Select {...f.bind('method')}><option value="">Select a payment method</option>{ONLINE_METHODS.map((m) => <option key={m} value={m}>{METHOD_LABELS[m]}</option>)}</Select></Field>
           <Field label="Payment gateway / provider" error={f.errors.gateway} hint="e.g. Razorpay, PhonePe, bank name"><Input {...f.bind('gateway')} maxLength={40} /></Field>
           <Field label="Payment reference ID" error={f.errors.gatewayPaymentId} hint="Unique per provider — duplicates are rejected"><Input {...f.bind('gatewayPaymentId')} maxLength={100} /></Field>
           <Field label="Transaction date" required error={f.errors.date}><Input type="date" max={todayIso()} {...f.bind('date')} /></Field>
           <Field label="Settlement account" required error={f.errors.accountId}><Select {...f.bind('accountId')}><option value="">Select a bank account</option>{options.map((a) => <option key={a.id} value={a.id}>{accountLabel(a, currency)}</option>)}</Select></Field>
           <Field label={`Payment amount (${currency})`} required error={f.errors.amount}><Input inputMode="decimal" placeholder="0.00" {...f.bind('amount')} /></Field>
           <Field label={`Processing fee (${currency})`} error={f.errors.fee} hint={net > 0 && toPaise(v.fee) > 0 ? `Net settlement ${formatMoney(fromPaise(net), currency)}` : 'Charged by the provider, if any'}><Input inputMode="decimal" placeholder="0.00" {...f.bind('fee')} /></Field>
-          <Field label="Payment status" required error={f.errors.status}><Select {...f.bind('status')}><option value="SUCCESS">Successful — post to the books now</option><option value="PENDING">Pending — awaiting confirmation</option></Select></Field>
+          <Field label="Payment status" required error={f.errors.status}><Select {...f.bind('status')}><option value="">Select a status</option><option value="SUCCESS">Successful — post to the books now</option><option value="PENDING">Pending — awaiting confirmation</option></Select></Field>
           <Field label="Notes" error={f.errors.notes} className="sm:col-span-2"><Textarea rows={2} {...f.bind('notes')} maxLength={500} /></Field>
         </div>
         {v.status === 'PENDING' && <Notice tone="amber">A pending payment is not posted. Confirm it as successful once the money has actually arrived.</Notice>}
@@ -128,16 +127,16 @@ export function RecordOnlinePaymentDialog({ open, onClose }: { open: boolean; on
 export function RefundDialog({ open, onClose, payment }: { open: boolean; onClose: () => void; payment: { id: string; number: string; amount: string; refundedAmount: string } | null }) {
   const { currency } = useAuth();
   const { busy, run } = useSubmit();
-  const f = useForm({ amount: '', date: todayIso(), reason: '' });
+  const f = useForm({ amount: '', date: '', reason: '' });
   const refundable = payment ? fromPaise(toPaise(payment.amount) - toPaise(payment.refundedAmount)) : '0.00';
-  useEffect(() => { if (open) f.reset({ amount: refundable, date: todayIso(), reason: '' }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open, payment?.id]);
+  useEffect(() => { if (open) f.reset({ amount: '', date: '', reason: '' }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open, payment?.id]);
   if (!payment) return null;
   const submit = (e: FormEvent) => { e.preventDefault(); void run((key) => api.post(`/payments/${payment.id}/refund`, f.values, key), { success: 'Refund recorded', setErrors: f.setErrors, onDone: onClose }); };
   return (
     <Modal open={open} onClose={onClose} title={`Refund payment ${payment.number}`} description={`Refundable: ${formatMoney(refundable, currency)}`} size="sm">
       <form onSubmit={submit} noValidate className="space-y-4">
         <Notice tone="amber">This records a refund in the books (money leaves the settlement account). Issue the actual refund with your bank or payment provider.</Notice>
-        <Field label={`Refund amount (${currency})`} required error={f.errors.amount}><Input inputMode="decimal" {...f.bind('amount')} /></Field>
+        <Field label={`Refund amount (${currency})`} required error={f.errors.amount}><Input inputMode="decimal" placeholder="0.00" {...f.bind('amount')} /></Field>
         <Field label="Refund date" required error={f.errors.date}><Input type="date" max={todayIso()} {...f.bind('date')} /></Field>
         <Field label="Reason" required error={f.errors.reason}><Textarea rows={2} {...f.bind('reason')} maxLength={500} /></Field>
         <div className="flex justify-end gap-2 pt-1"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" variant="danger" loading={busy}>Record refund</Button></div>

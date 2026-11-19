@@ -16,7 +16,7 @@ const SETTLEMENT = ['CASH', 'BANK_TRANSFER', 'UPI', 'CREDIT_CARD', 'DEBIT_CARD',
 export const accountLabel = (a: Account, currency: string) => `${a.name}${a.accountNumberMasked ? ` (${a.accountNumberMasked})` : ''} — ${formatMoney(a.balance, currency)}`;
 /** Cash is paid from/into cash accounts; every other method settles through a bank account. */
 export const accountsFor = (accounts: Account[] | undefined, method: string) =>
-  (accounts ?? []).filter((a) => a.isActive && (method === 'CASH' ? a.kind === 'CASH' : method === 'OTHER' ? true : a.kind === 'BANK'));
+  method ? (accounts ?? []).filter((a) => a.isActive && (method === 'CASH' ? a.kind === 'CASH' : method === 'OTHER' ? true : a.kind === 'BANK')) : [];
 
 interface Props { kind: FormKind | null; onClose: () => void; defaultAccountId?: string }
 
@@ -48,10 +48,10 @@ function IncomeExpenseForm({ kind, onClose, defaultAccountId }: { kind: 'INCOME'
   const taxRates = useTaxRates();
   const settings = useSettings();
   const { busy, run } = useSubmit();
-  const defaultAccount = accounts.data?.find((a) => a.id === defaultAccountId);
+  // Every field starts empty: the user enters each detail themselves.
   const f = useForm({
-    date: todayIso(), categoryId: '', partyId: '', description: '', amount: '', taxAmount: '', taxRecoverable: false as boolean,
-    paymentMethod: defaultAccount?.kind === 'BANK' ? 'BANK_TRANSFER' : 'CASH', accountId: defaultAccountId ?? '', reference: '', dueDate: '',
+    date: '', categoryId: '', partyId: '', description: '', amount: '', taxAmount: '', taxRecoverable: false as boolean,
+    paymentMethod: '', accountId: defaultAccountId ?? '', reference: '', dueDate: '',
   });
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
@@ -60,11 +60,11 @@ function IncomeExpenseForm({ kind, onClose, defaultAccountId }: { kind: 'INCOME'
   const onCredit = v.paymentMethod === 'CREDIT';
   const options = accountsFor(accounts.data, v.paymentMethod);
 
-  // Keep the chosen account consistent with the payment method.
+  // Clear the account if it no longer fits the payment method. Nothing is chosen automatically.
   useEffect(() => {
     if (onCredit) { if (v.accountId) f.set('accountId', ''); return; }
-    if (!accounts.data) return;
-    if (!options.some((a) => a.id === v.accountId)) f.set('accountId', options.length === 1 ? options[0].id : '');
+    if (!accounts.data || !v.accountId) return;
+    if (!options.some((a) => a.id === v.accountId)) f.set('accountId', '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [v.paymentMethod, accounts.data]);
 
@@ -130,6 +130,7 @@ function IncomeExpenseForm({ kind, onClose, defaultAccountId }: { kind: 'INCOME'
         ) : <div className="hidden sm:block" />}
         <Field label="Payment method" required error={f.errors.paymentMethod}>
           <Select {...f.bind('paymentMethod')}>
+            <option value="">Select a payment method</option>
             {SETTLEMENT.map((m) => <option key={m} value={m}>{METHOD_LABELS[m]}</option>)}
             {!isIncome && <option value="CREDIT">{METHOD_LABELS.CREDIT}</option>}
           </Select>
@@ -137,7 +138,7 @@ function IncomeExpenseForm({ kind, onClose, defaultAccountId }: { kind: 'INCOME'
         {onCredit ? (
           <Field label="Payment due date" error={f.errors.dueDate} hint="Creates a payable to the supplier"><Input type="date" min={v.date} {...f.bind('dueDate')} /></Field>
         ) : (
-          <Field label={isIncome ? 'Deposit to account' : 'Paid from account'} required error={f.errors.accountId} hint={options.length === 0 && accounts.data ? `No active ${v.paymentMethod === 'CASH' ? 'cash' : 'bank'} account. Create one first.` : undefined}>
+          <Field label={isIncome ? 'Deposit to account' : 'Paid from account'} required error={f.errors.accountId} hint={!v.paymentMethod ? 'Choose the payment method first' : options.length === 0 && accounts.data ? `No active ${v.paymentMethod === 'CASH' ? 'cash' : 'bank'} account. Create one first.` : undefined}>
             <Select {...f.bind('accountId')}><option value="">Select an account</option>{options.map((a) => <option key={a.id} value={a.id}>{accountLabel(a, currency)}</option>)}</Select>
           </Field>
         )}
@@ -172,7 +173,7 @@ function TransferForm({ onClose, defaultAccountId }: { onClose: () => void; defa
   const { currency } = useAuth();
   const accounts = useAccounts();
   const { busy, run } = useSubmit();
-  const f = useForm({ date: todayIso(), fromAccountId: defaultAccountId ?? '', toAccountId: '', amount: '', description: '', reference: '' });
+  const f = useForm({ date: '', fromAccountId: defaultAccountId ?? '', toAccountId: '', amount: '', description: '', reference: '' });
   const active = (accounts.data ?? []).filter((a) => a.isActive);
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -202,7 +203,7 @@ function AdjustmentForm({ onClose, defaultAccountId }: { onClose: () => void; de
   const { currency } = useAuth();
   const accounts = useAccounts();
   const { busy, run } = useSubmit();
-  const f = useForm({ date: todayIso(), accountId: defaultAccountId ?? '', direction: 'DECREASE', amount: '', reason: '', reference: '' });
+  const f = useForm({ date: '', accountId: defaultAccountId ?? '', direction: '', amount: '', reason: '', reference: '' });
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void run((key) => api.post('/transactions', { type: 'ADJUSTMENT', ...f.values }, key), { success: 'Adjustment posted', setErrors: f.setErrors, onDone: onClose });
@@ -215,7 +216,7 @@ function AdjustmentForm({ onClose, defaultAccountId }: { onClose: () => void; de
           <Select {...f.bind('accountId')}><option value="">Select an account</option>{(accounts.data ?? []).filter((a) => a.isActive).map((a) => <option key={a.id} value={a.id}>{accountLabel(a, currency)}</option>)}</Select>
         </Field>
         <Field label="Adjustment" required error={f.errors.direction}>
-          <Select {...f.bind('direction')}><option value="DECREASE">Decrease balance (shortage)</option><option value="INCREASE">Increase balance (excess)</option></Select>
+          <Select {...f.bind('direction')}><option value="">Select increase or decrease</option><option value="DECREASE">Decrease balance (shortage)</option><option value="INCREASE">Increase balance (excess)</option></Select>
         </Field>
         <Field label={`Amount (${currency})`} required error={f.errors.amount}><Input inputMode="decimal" placeholder="0.00" {...f.bind('amount')} /></Field>
         <Field label="Date" required error={f.errors.date}><Input type="date" max={todayIso()} {...f.bind('date')} /></Field>

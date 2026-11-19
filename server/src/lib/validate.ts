@@ -38,7 +38,10 @@ export const zMoneyOptional = z.preprocess(
   moneyString.transform((s) => D(s)),
 );
 
-export const zDate = z.string({ required_error: 'Date is required' }).refine(isValidDate, 'Enter a valid date (YYYY-MM-DD)');
+export const zDate = z.preprocess(
+  (v) => (v === '' || v === null ? undefined : v),
+  z.string({ required_error: 'Date is required', invalid_type_error: 'Date is required' }).refine(isValidDate, 'Enter a valid date (YYYY-MM-DD)'),
+);
 export const zDateOptional = z.preprocess((v) => (v === '' || v === null ? undefined : v), zDate.optional());
 
 export const zId = z.preprocess(
