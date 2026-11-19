@@ -3,16 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "description": "Company Accounting Software (CAS) — React + Express + PostgreSQL",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "install:all": "npm --prefix server install && npm --prefix client install",
+    "install:all": "npm --prefix server install --include=dev --no-audit --no-fund && npm --prefix client install --include=dev --no-audit --no-fund",
     "db:start": "powershell -ExecutionPolicy Bypass -File scripts/dev-db.ps1 start",
     "db:stop": "powershell -ExecutionPolicy Bypass -File scripts/dev-db.ps1 stop",
     "migrate": "npm --prefix server run migrate:deploy",
     "setup:admin": "npm --prefix server run setup:admin",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
-    "build": "npm --prefix server run build && npm --prefix client run build",
-    "start": "npm --prefix server run start",
+    "build": "npm run install:all && npm --prefix server run build && npm --prefix client run build",
+    "start": "npm --prefix server run migrate:deploy && npm --prefix server run start",
     "test": "npm --prefix server test && npm --prefix client test"
   }
 }

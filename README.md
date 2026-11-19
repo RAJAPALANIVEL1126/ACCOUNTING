@@ -240,6 +240,39 @@ Outputs: `server/dist/` (run with `node dist/index.js`) and `client/dist/` (stat
 7. Run exactly one schema migration at a time; the API itself is stateless and can run as several instances
    (sessions, idempotency keys and counters live in PostgreSQL). Uploaded files then need shared storage.
 
+**Deploying on Render (one Web Service + Render PostgreSQL)**
+
+The root `package.json` does the whole job, so Render's defaults work:
+
+| Setting | Value |
+|---|---|
+| Root directory | *(empty — the repository root)* |
+| Build command | `npm run build` (or Render's default `yarn; yarn build`) — installs the server and client dependencies, then builds both |
+| Start command | `npm start` (or `yarn start`) — applies pending database migrations, then starts the API |
+| Health check path | `/api/health` |
+
+Environment variables (Web Service → Environment). The server refuses to start in production without the first three:
+
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | the PostgreSQL **Internal Database URL** from your Render database |
+| `APP_URL` | your service's public URL, e.g. `https://accounting-xxxx.onrender.com` (must be `https://`) |
+| `SERVE_CLIENT` | `true` — the API serves the web app, so everything is on one origin |
+| `TRUST_PROXY` | `1` — Render sits in front of the app as one proxy |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | your e-mail provider; without them sign-up verification and password links cannot be delivered |
+
+Create the first administrator once the first deploy is live. Render's shell (paid plans) can run
+`npm --prefix server run setup:admin:prod`. On any plan you can run the normal setup from your own computer
+against the Render database, using its **External Database URL** (PowerShell):
+
+```powershell
+$env:DATABASE_URL = 'postgresql://…external URL from Render…'; npm run setup:admin
+```
+
+Render's free instances have an ephemeral disk: uploaded logos and receipts are lost on every deploy or restart.
+Attach a persistent disk and point `UPLOAD_DIR` at it if you need to keep them.
+
 **External services that still need your configuration**
 
 | Service | Needed for | Status in this repository |
